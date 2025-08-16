@@ -29,9 +29,13 @@ default:
 
   backup:
     verbose: true
+    skip-if-unchanged: true
     exclude-file: "excludes.txt" # Relative to config.yaml
     source:
       - "."                      # Relative to CWD
+
+  find:
+    human-readable: true
 """.strip()
 
 # endregion
