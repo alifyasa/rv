@@ -139,8 +139,7 @@ def cmd_status(args: list[str]) -> None:
         )
         sys.exit(1)
 
-    print("Recent snapshots:")
-    run_resticprofile("snapshots", "--compact", "--last", "5", *args)
+    run_resticprofile("snapshots", "--compact", "--latest", "10", *args)
 
 
 def cmd_log(args: list[str]) -> None:
