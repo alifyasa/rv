@@ -10,14 +10,40 @@ import getpass
 import shutil
 from pathlib import Path
 
+# region Configuration
+
+CONFIG_DIR = ".rv"
+
+# endregion
+
+# region Templates
+
+CONFIG_TEMPLATE = """
+# yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
+
+version: "1"
+
+default:
+  repository: "local:.rv/repo"   # Relative to CWD
+  password-file: "password.txt"  # Relative to config.yaml
+
+  backup:
+    verbose: true
+    exclude-file: "excludes.txt" # Relative to config.yaml
+    source:
+      - "."                      # Relative to CWD
+""".strip()
+
+# endregion
+
 # region Utilities
 
 
 def find_restic_dir() -> Path | None:
-    """Find .restic directory by walking up from current directory"""
+    """Find .rv directory by walking up from current directory"""
     current = Path.cwd()
     for parent in [current, *current.parents]:
-        restic_dir = parent / ".restic"
+        restic_dir = parent / CONFIG_DIR
         if restic_dir.is_dir():
             return restic_dir
     return None
@@ -36,7 +62,10 @@ def run_resticprofile(*args: str) -> None:
     """Run resticprofile with the given arguments"""
     restic_dir = find_restic_dir()
     if restic_dir is None:
-        print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
+        print(
+            f"Error: not in a restic repository (no {CONFIG_DIR} found)",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     config_path = get_config_path(restic_dir)
@@ -51,10 +80,10 @@ def run_resticprofile(*args: str) -> None:
 
 def cmd_init(args: list[str]) -> None:
     """Initialize a new restic repository configuration"""
-    restic_dir = Path(".restic")
+    restic_dir = Path(CONFIG_DIR)
 
     if restic_dir.exists():
-        print("Error: .restic directory already exists")
+        print(f"Error: {CONFIG_DIR} directory already exists")
         sys.exit(1)
 
     try:
@@ -62,22 +91,7 @@ def cmd_init(args: list[str]) -> None:
         restic_dir.mkdir(parents=True)
 
         # Create config.yaml file
-        config_content = """
-# yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
-
-version: "1"
-
-default:
-  repository: "local:.restic/repo" # Relative to CWD
-  password-file: "password.txt"    # Relative to config.yaml
-
-  backup:
-    verbose: true
-    exclude-file: "excludes.txt"   # Relative to config.yaml
-    source:
-      - "."                        # Relative to CWD
-"""
-        (restic_dir / "config.yaml").write_text(config_content)
+        (restic_dir / "config.yaml").write_text(CONFIG_TEMPLATE)
 
         # Get password
         while True:
@@ -92,7 +106,7 @@ default:
         password_file.write_text(password)
         password_file.chmod(0o600)
 
-        excludes_content = "./.restic/repo"
+        excludes_content = f"./{CONFIG_DIR}/repo"
 
         excludes_file = restic_dir / "excludes.txt"
         excludes_file.write_text(excludes_content)
@@ -102,7 +116,7 @@ default:
         cmd = ["resticprofile", "-c", config_path, "init"] + list(args)
         subprocess.run(cmd, check=False)
 
-        print("Initialized restic configuration in .restic/")
+        print(f"Initialized restic configuration in {CONFIG_DIR}/")
     except (OSError, IOError, PermissionError, KeyboardInterrupt) as e:
         # Clean up on any error
         if restic_dir.exists():
@@ -115,7 +129,10 @@ def cmd_status(args: list[str]) -> None:
     """Show recent snapshots (like git status)"""
     restic_dir = find_restic_dir()
     if restic_dir is None:
-        print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
+        print(
+            f"Error: not in a restic repository (no {CONFIG_DIR} found)",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print("Recent snapshots:")
@@ -126,7 +143,10 @@ def cmd_log(args: list[str]) -> None:
     """Show all snapshots (like git log)"""
     restic_dir = find_restic_dir()
     if restic_dir is None:
-        print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
+        print(
+            f"Error: not in a restic repository (no {CONFIG_DIR} found)",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     run_resticprofile("snapshots", *args)

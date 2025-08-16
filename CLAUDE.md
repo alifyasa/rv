@@ -43,22 +43,22 @@ rv is a Git-like wrapper around Restic backup tool that provides familiar versio
 
 ### Core Components
 
-1. **Configuration Management** (`rv.py:26-45`): Loads environment variables from `.restic/config` file to configure Restic repository settings.
+1. **Configuration Management** (`rv.py:29-48`): Loads environment variables from `.rv/config` file to configure Restic repository settings.
 
-2. **Repository Discovery** (`rv.py:16-23`): Walks up directory tree to find `.restic` directory, similar to Git's `.git` discovery.
+2. **Repository Discovery** (`rv.py:19-26`): Walks up directory tree to find `.rv` directory, similar to Git's `.git` discovery.
 
 3. **Command System** (`rv.py:138-144`): Registry-based command dispatch that maps custom commands to handler functions, with fallback passthrough to native Restic commands.
 
 4. **Custom Commands**:
-   - `init`: Creates `.restic/` directory structure, prompts for password, initializes Restic repository
+   - `init`: Creates `.rv/` directory structure, prompts for password, initializes Restic repository
    - `status`: Shows recent 5 snapshots (Git status equivalent)
    - `log`: Shows all snapshots (Git log equivalent)
 
 ### File Structure
 - `rv.py`: Single-file application containing all functionality
-- `.restic/config`: Environment variables for Restic configuration
-- `.restic/password`: Repository password file (created during init)
-- `.restic/repo/`: Actual Restic repository data
+- `.rv/config`: Environment variables for Restic configuration
+- `.rv/password`: Repository password file (created during init)
+- `.rv/repo/`: Actual Restic repository data
 
 ### Extension Pattern
 New commands are added by:
