@@ -23,31 +23,25 @@ def find_restic_dir() -> Path | None:
     return None
 
 
-def load_config(restic_dir: Path) -> None:
-    """Load environment variables from .restic/config"""
-    config_file = restic_dir / "config"
+def get_config_path(restic_dir: Path) -> str:
+    """Get the path to the resticprofile config file"""
+    config_file = restic_dir / "config.yaml"
     if not config_file.exists():
         print(f"Error: {config_file} not found", file=sys.stderr)
         sys.exit(1)
-
-    # Read and execute the config file to set environment variables
-    with open(config_file, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                if line.startswith("export "):
-                    line = line[7:]  # Remove 'export '
-                if "=" in line:
-                    key, value = line.split("=", 1)
-                    # Remove quotes if present
-                    value = value.strip("\"'")
-                    os.environ[key] = value
+    return str(config_file)
 
 
-def run_restic(args: list[str]) -> None:
-    """Run restic with the given arguments"""
-    cmd = ["restic"] + args
-    os.execvp("restic", cmd)
+def run_resticprofile(*args: str) -> None:
+    """Run resticprofile with the given arguments"""
+    restic_dir = find_restic_dir()
+    if restic_dir is None:
+        print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
+        sys.exit(1)
+
+    config_path = get_config_path(restic_dir)
+    cmd = ["resticprofile", "-c", config_path] + list(args)
+    os.execvp("resticprofile", cmd)
 
 
 # endregion
@@ -56,7 +50,7 @@ def run_restic(args: list[str]) -> None:
 
 
 def cmd_init(args: list[str]) -> None:
-    """Initialize a new restic repository"""
+    """Initialize a new restic repository configuration"""
     restic_dir = Path(".restic")
 
     if restic_dir.exists():
@@ -65,15 +59,25 @@ def cmd_init(args: list[str]) -> None:
 
     try:
         # Create directory structure
-        repo_dir = restic_dir / "repo"
-        repo_dir.mkdir(parents=True)
+        restic_dir.mkdir(parents=True)
 
-        # Create config file
-        config_content = (
-            'export RESTIC_REPOSITORY=".restic/repo"\n'
-            'export RESTIC_PASSWORD_FILE=".restic/password"\n'
-        )
-        (restic_dir / "config").write_text(config_content)
+        # Create config.yaml file
+        config_content = """
+# yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
+
+version: "1"
+
+default:
+  repository: "local:.restic/repo" # Relative to CWD
+  password-file: "password.txt"    # Relative to config.yaml
+
+  backup:
+    verbose: true
+    exclude-file: "excludes.txt"   # Relative to config.yaml
+    source:
+      - "."                        # Relative to CWD
+"""
+        (restic_dir / "config.yaml").write_text(config_content)
 
         # Get password
         while True:
@@ -84,22 +88,21 @@ def cmd_init(args: list[str]) -> None:
             print("Error: Passwords don't match")
 
         # Save password
-        password_file = restic_dir / "password"
+        password_file = restic_dir / "password.txt"
         password_file.write_text(password)
         password_file.chmod(0o600)
 
-        # Load config and initialize repository
-        load_config(restic_dir)
+        excludes_content = "./.restic/repo"
 
-        # Initialize restic repository
-        result = subprocess.run(["restic", "init"] + args, check=False)
-        if result.returncode == 0:
-            print("Initialized restic repository in .restic/")
-        else:
-            # Restic init failed, clean up
-            if restic_dir.exists():
-                shutil.rmtree(restic_dir)
-        sys.exit(result.returncode)
+        excludes_file = restic_dir / "excludes.txt"
+        excludes_file.write_text(excludes_content)
+        excludes_file.chmod(0o644)
+
+        config_path = get_config_path(restic_dir)
+        cmd = ["resticprofile", "-c", config_path, "init"] + list(args)
+        subprocess.run(cmd, check=False)
+
+        print("Initialized restic configuration in .restic/")
     except (OSError, IOError, PermissionError, KeyboardInterrupt) as e:
         # Clean up on any error
         if restic_dir.exists():
@@ -115,9 +118,8 @@ def cmd_status(args: list[str]) -> None:
         print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
         sys.exit(1)
 
-    load_config(restic_dir)
     print("Recent snapshots:")
-    run_restic(["snapshots", "--compact", "--last", "5"] + args)
+    run_resticprofile("snapshots", "--compact", "--last", "5", *args)
 
 
 def cmd_log(args: list[str]) -> None:
@@ -127,8 +129,7 @@ def cmd_log(args: list[str]) -> None:
         print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
         sys.exit(1)
 
-    load_config(restic_dir)
-    run_restic(["snapshots"] + args)
+    run_resticprofile("snapshots", *args)
 
 
 # endregion
@@ -155,15 +156,8 @@ def main() -> None:
         COMMANDS[command](args)
         return
 
-    # Default: passthrough to restic
-    restic_dir = find_restic_dir()
-    if restic_dir is None:
-        print("Error: not in a restic repository (no .restic found)", file=sys.stderr)
-        sys.exit(1)
-
-    # Load configuration and pass through to restic
-    load_config(restic_dir)
-    run_restic(sys.argv[1:])
+    # Default: passthrough to resticprofile
+    run_resticprofile(*sys.argv[1:])
 
 
 # endregion
