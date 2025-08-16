@@ -30,7 +30,9 @@ default:
   backup:
     verbose: true
     skip-if-unchanged: true
-    exclude-file: "excludes.txt" # Relative to config.yaml
+    exclude-file:               # Relative to config.yaml
+     - ".rvignore"
+     - "../.rvignore"
     source:
       - "."                      # Relative to CWD
 
@@ -112,9 +114,12 @@ def cmd_init(args: list[str]) -> None:
 
         excludes_content = f"./{CONFIG_DIR}/repo"
 
-        excludes_file = restic_dir / "excludes.txt"
+        excludes_file = restic_dir / ".rvignore"
         excludes_file.write_text(excludes_content)
         excludes_file.chmod(0o644)
+
+        parent_exclude = restic_dir.parent / ".rvignore"
+        parent_exclude.touch(exist_ok=True)
 
         config_path = get_config_path(restic_dir)
         cmd = ["resticprofile", "-c", config_path, "init"] + list(args)
