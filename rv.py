@@ -112,7 +112,7 @@ def cmd_init(args: list[str]) -> None:
         password_file.write_text(password)
         password_file.chmod(0o600)
 
-        excludes_content = f"./{CONFIG_DIR}/repo"
+        excludes_content = f"./{CONFIG_DIR}/repo/" "\n" "**/.git/"
 
         excludes_file = restic_dir / ".rvignore"
         excludes_file.write_text(excludes_content)
