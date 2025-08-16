@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-rv - Extensible transparent wrapper for restic
-Requires Python 3.8+ (oldest actively supported version)
+rv - Versioning using Restic
 """
 
 import os
 import sys
 import subprocess
 import getpass
+import shutil
 from pathlib import Path
 
 # region Utilities
@@ -63,37 +63,49 @@ def cmd_init(args: list[str]) -> None:
         print("Error: .restic directory already exists")
         sys.exit(1)
 
-    # Create directory structure
-    repo_dir = restic_dir / "repo"
-    repo_dir.mkdir(parents=True)
+    try:
+        # Create directory structure
+        repo_dir = restic_dir / "repo"
+        repo_dir.mkdir(parents=True)
 
-    # Create config file
-    config_content = """export RESTIC_REPOSITORY=".restic/repo"
-export RESTIC_PASSWORD_FILE=".restic/password"
-"""
-    (restic_dir / "config").write_text(config_content)
+        # Create config file
+        config_content = (
+            'export RESTIC_REPOSITORY=".restic/repo"\n'
+            'export RESTIC_PASSWORD_FILE=".restic/password"\n'
+        )
+        (restic_dir / "config").write_text(config_content)
 
-    # Get password
-    while True:
-        password = getpass.getpass("Enter password for new repository: ")
-        password2 = getpass.getpass("Enter password again: ")
-        if password == password2:
-            break
-        print("Error: Passwords don't match")
+        # Get password
+        while True:
+            password = getpass.getpass("Enter password for new repository: ")
+            password2 = getpass.getpass("Enter password again: ")
+            if password == password2:
+                break
+            print("Error: Passwords don't match")
 
-    # Save password
-    password_file = restic_dir / "password"
-    password_file.write_text(password)
-    password_file.chmod(0o600)
+        # Save password
+        password_file = restic_dir / "password"
+        password_file.write_text(password)
+        password_file.chmod(0o600)
 
-    # Load config and initialize repository
-    load_config(restic_dir)
+        # Load config and initialize repository
+        load_config(restic_dir)
 
-    # Initialize restic repository
-    result = subprocess.run(["restic", "init"] + args, check=False)
-    if result.returncode == 0:
-        print("Initialized restic repository in .restic/")
-    sys.exit(result.returncode)
+        # Initialize restic repository
+        result = subprocess.run(["restic", "init"] + args, check=False)
+        if result.returncode == 0:
+            print("Initialized restic repository in .restic/")
+        else:
+            # Restic init failed, clean up
+            if restic_dir.exists():
+                shutil.rmtree(restic_dir)
+        sys.exit(result.returncode)
+    except (OSError, IOError, PermissionError, KeyboardInterrupt) as e:
+        # Clean up on any error
+        if restic_dir.exists():
+            shutil.rmtree(restic_dir)
+        print(f"Error during initialization: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_status(args: list[str]) -> None:
