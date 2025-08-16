@@ -1,0 +1,25 @@
+[project]
+name = "rv"
+version = "0.1.0"
+description = "Versioning using Restic"
+authors = [
+    {name = "Alif Yasa",email = "130131893+alifyasa@users.noreply.github.com"}
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+]
+
+[tool.poetry.scripts]
+rv = "rv:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.12.9"
+mypy = "^1.17.1"
+pre-commit = "^4.3.0"
