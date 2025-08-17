@@ -20,24 +20,25 @@ CONFIG_DIR: str = ".rv"
 
 # region Templates
 
-CONFIG_TEMPLATE: str = """
+CONFIG_TEMPLATE: str = (
+    """
 # yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
 
 version: "1"
 
 default:
-  verbose: 2
   repository: "{repository}"
   password-command: |
     rv get-pass
 
   backup:
+    verbose: 1
     skip-if-unchanged: true
-    exclude-file:               # Relative to config.yaml
+    exclude-file:            # Relative to config.yaml
      - ".rvignore"
      - "../.rvignore"
     source:
-      - "."                      # Relative to CWD
+      - "."                  # Relative to CWD
 
   find:
     human-readable: true
@@ -47,8 +48,10 @@ default:
       rv get-pass --confirm
 
   restore:
-    target: .                    # Relative to CWD
+    target: .                # Relative to CWD
 """.strip()
+    + "\n"
+)
 
 # endregion
 
@@ -110,6 +113,11 @@ def cmd_init(args: list[str]) -> None:
         action="store_true",
         help="Only create .rv directory structure, skip resticprofile init",
     )
+    parser.add_argument(
+        "--override",
+        action="store_true",
+        help="Override existing .rv directory by creating temporary directory and atomically replacing",
+    )
 
     try:
         parsed_args, _ = parser.parse_known_args(args)
@@ -118,6 +126,7 @@ def cmd_init(args: list[str]) -> None:
 
     repository: Optional[str] = parsed_args.repository
     setup_only: bool = parsed_args.setup_only
+    override: bool = parsed_args.override
 
     # If no repository specified and not setup-only, ask for confirmation to use local
     if repository is None and not setup_only:
@@ -135,9 +144,17 @@ def cmd_init(args: list[str]) -> None:
 
     restic_dir: Path = Path(CONFIG_DIR)
 
-    if restic_dir.exists():
+    if restic_dir.exists() and not override:
         print(f"Error: {CONFIG_DIR} directory already exists")
         sys.exit(1)
+
+    # Use temporary directory when overriding existing installation
+    temp_dir: Optional[Path] = None
+    if override:
+        temp_dir = Path(f"{CONFIG_DIR}.tmp")
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        restic_dir = temp_dir
 
     try:
         # Create directory structure
@@ -161,11 +178,21 @@ def cmd_init(args: list[str]) -> None:
             cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
             subprocess.run(cmd, check=True)
 
+        # Perform atomic swap if using override
+        if override and temp_dir is not None:
+            original_dir: Path = Path(CONFIG_DIR)
+            if original_dir.exists():
+                shutil.rmtree(original_dir)
+            temp_dir.rename(original_dir)
+
         print(f"Initialized restic configuration in {CONFIG_DIR}/")
     except (OSError, subprocess.SubprocessError) as e:
         # Clean up on any error
         if restic_dir.exists():
             shutil.rmtree(restic_dir)
+        # Also clean up temp directory if it was created
+        if override and temp_dir is not None and temp_dir.exists():
+            shutil.rmtree(temp_dir)
         print(f"Error during initialization: {e}", file=sys.stderr)
         sys.exit(1)
 
