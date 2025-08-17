@@ -3,11 +3,7 @@
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Output configuration - no colors, verbose but dense
 
 # Script and dependency configuration
 SCRIPT_NAME="rv.py"
@@ -25,13 +21,13 @@ check_binary() {
 
     # Check if binary exists in install directory
     if [[ -x "$install_dir/$binary_name" ]]; then
-        echo -e "${GREEN}✓ $binary_name already exists${NC}"
+        echo "$binary_name: already installed in $install_dir"
         return 0
     fi
 
     # Check if binary exists in PATH
     if command -v "$binary_name" >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ $binary_name found in PATH${NC}"
+        echo "$binary_name: found in PATH"
         return 0
     fi
 
@@ -50,7 +46,7 @@ needs_sudo() {
 install_dependencies() {
     local install_dir="$1"
 
-    echo "Installing dependencies: rclone v1.70.3, restic v0.18.0, resticprofile v0.31.0"
+    echo "Installing dependencies: rclone v1.70.3, restic v0.18.0, resticprofile v0.31.0 to $install_dir"
 
     # Create temporary directory for downloads only if needed
     local temp_dir=""
@@ -67,7 +63,7 @@ install_dependencies() {
         IFS=':' read -r binary_name version url <<< "$dep"
 
         if ! check_binary "$binary_name" "$install_dir"; then
-            echo "Installing $binary_name $version..."
+            echo "$binary_name $version: downloading and installing"
 
             if [[ -z "$temp_dir" ]]; then
                 temp_dir=$(mktemp -d)
@@ -94,21 +90,20 @@ install_dependencies() {
                     $sudo_cmd chmod +x "$install_dir/resticprofile"
                     ;;
             esac
-            echo -e "${GREEN}✓ $binary_name installed${NC}"
+            echo "$binary_name $version: installed successfully"
         fi
     done
 
     # Check if install directory is in PATH
     if [[ ":$PATH:" != *":$install_dir:"* ]]; then
-        echo -e "${YELLOW}⚠ WARNING: $install_dir is not in your PATH${NC}"
-        echo "Add this line to your ~/.bashrc or ~/.profile:"
+        echo "WARNING: $install_dir not in PATH - add to ~/.bashrc or ~/.profile:"
         echo "export PATH=\"$install_dir:\$PATH\""
     fi
 }
 
 # Check if rv.py exists
 if [ ! -f "$SCRIPT_NAME" ]; then
-    echo -e "${RED}Error: $SCRIPT_NAME not found in current directory${NC}"
+    echo "Error: $SCRIPT_NAME not found in current directory"
     exit 1
 fi
 
@@ -129,7 +124,7 @@ try_install() {
     cp "$SCRIPT_NAME" "$target"
     chmod +x "$target"
 
-    echo -e "${GREEN}✅ Successfully installed $TARGET_NAME to $dir${NC}"
+    echo "$TARGET_NAME: installed successfully to $dir"
 
     # Install dependencies to the same directory
     install_dependencies "$dir"
@@ -149,11 +144,11 @@ PREFERRED_DIRS=(
 
 # Check if rv already exists
 if command -v rv >/dev/null 2>&1; then
-    echo -e "${GREEN}✅ rv already installed at: $(which rv)${NC}"
+    echo "rv: already installed at $(which rv)"
     exit 0
 fi
 
-echo "Installing rv..."
+echo "rv: installing to writable PATH directory"
 
 # Try preferred directories first
 for dir in "${PREFERRED_DIRS[@]}"; do
@@ -188,9 +183,7 @@ done
 
 # If all failed, show manual instructions
 echo
-echo -e "${RED}❌ Automatic installation failed${NC}"
-echo
-echo -e "${YELLOW}Manual installation:${NC}"
+echo "Automatic installation failed - manual installation required:"
 echo "1. Choose a directory in your PATH:"
 for dir in "${PATH_DIRS[@]}"; do
     echo "   - $dir"
