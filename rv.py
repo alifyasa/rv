@@ -26,7 +26,7 @@ CONFIG_TEMPLATE: str = """
 version: "1"
 
 default:
-  repository: "local:.rv/repo"   # Relative to CWD
+  repository: "{repository}"
   password-command: |
     rv get-pass
 
@@ -93,6 +93,35 @@ def run_resticprofile(*args: str) -> None:
 
 def cmd_init(args: list[str]) -> None:
     """Initialize a new restic repository configuration"""
+    # Parse arguments for repository option
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        prog="rv init", description="Initialize a new restic repository configuration"
+    )
+    parser.add_argument(
+        "--repository",
+        "-r",
+        help="Repository location (e.g., local:path, s3:bucket, etc.)",
+    )
+
+    try:
+        parsed_args, _ = parser.parse_known_args(args)
+    except SystemExit:
+        return
+
+    repository: Optional[str] = parsed_args.repository
+
+    # If no repository specified, ask for confirmation to use local
+    if repository is None:
+        response: str = (
+            input("No repository specified. Create a local repository? (y/N): ")
+            .strip()
+            .lower()
+        )
+        if response not in ["y", "yes"]:
+            print("Repository initialization cancelled.")
+            sys.exit(1)
+        repository = "local:.rv/repo"
+
     restic_dir: Path = Path(CONFIG_DIR)
 
     if restic_dir.exists():
@@ -103,8 +132,9 @@ def cmd_init(args: list[str]) -> None:
         # Create directory structure
         restic_dir.mkdir(parents=True)
 
-        # Create config.yaml file
-        (restic_dir / "config.yaml").write_text(CONFIG_TEMPLATE)
+        # Create config.yaml file using template
+        config_content: str = CONFIG_TEMPLATE.format(repository=repository)
+        (restic_dir / "config.yaml").write_text(config_content)
 
         excludes_content: str = f"./{CONFIG_DIR}/repo/\n**/.git/"
 
