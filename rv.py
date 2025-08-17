@@ -102,6 +102,11 @@ def cmd_init(args: list[str]) -> None:
         "-r",
         help="Repository location (e.g., local:path, s3:bucket, etc.)",
     )
+    parser.add_argument(
+        "--setup-only",
+        action="store_true",
+        help="Only create .rv directory structure, skip resticprofile init",
+    )
 
     try:
         parsed_args, _ = parser.parse_known_args(args)
@@ -109,9 +114,10 @@ def cmd_init(args: list[str]) -> None:
         return
 
     repository: Optional[str] = parsed_args.repository
+    setup_only: bool = parsed_args.setup_only
 
-    # If no repository specified, ask for confirmation to use local
-    if repository is None:
+    # If no repository specified and not setup-only, ask for confirmation to use local
+    if repository is None and not setup_only:
         response: str = (
             input("No repository specified. Create a local repository? (y/N): ")
             .strip()
@@ -120,6 +126,8 @@ def cmd_init(args: list[str]) -> None:
         if response not in ["y", "yes"]:
             print("Repository initialization cancelled.")
             sys.exit(1)
+        repository = "local:.rv/repo"
+    elif repository is None and setup_only:
         repository = "local:.rv/repo"
 
     restic_dir: Path = Path(CONFIG_DIR)
@@ -145,9 +153,10 @@ def cmd_init(args: list[str]) -> None:
         parent_exclude: Path = restic_dir.parent / ".rvignore"
         parent_exclude.touch(exist_ok=True)
 
-        config_path: str = get_config_path(restic_dir)
-        cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
-        subprocess.run(cmd, check=True)
+        if not setup_only:
+            config_path: str = get_config_path(restic_dir)
+            cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
+            subprocess.run(cmd, check=True)
 
         print(f"Initialized restic configuration in {CONFIG_DIR}/")
     except (OSError, subprocess.SubprocessError) as e:
