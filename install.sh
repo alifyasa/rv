@@ -1,7 +1,7 @@
 #!/bin/bash
-# install.sh - Simple installer for rv
+# install.sh - Complete installer for rv and dependencies
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -9,9 +9,102 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Script name
+# Script and dependency configuration
 SCRIPT_NAME="rv.py"
 TARGET_NAME="rv"
+DEPENDENCIES=(
+    "rclone:v1.70.3:https://downloads.rclone.org/v1.70.3/rclone-v1.70.3-linux-amd64.zip"
+    "restic:v0.18.0:https://github.com/restic/restic/releases/download/v0.18.0/restic_0.18.0_linux_amd64.bz2"
+    "resticprofile:v0.31.0:https://github.com/creativeprojects/resticprofile/releases/download/v0.31.0/resticprofile_0.31.0_linux_amd64.tar.gz"
+)
+
+# Function to check if binary exists
+check_binary() {
+    local binary_name="$1"
+    local install_dir="$2"
+
+    # Check if binary exists in install directory
+    if [[ -x "$install_dir/$binary_name" ]]; then
+        echo -e "${GREEN}✓ $binary_name already exists${NC}"
+        return 0
+    fi
+
+    # Check if binary exists in PATH
+    if command -v "$binary_name" >/dev/null 2>&1; then
+        echo -e "${GREEN}✓ $binary_name found in PATH${NC}"
+        return 0
+    fi
+
+    return 1
+}
+
+# Function to check if command needs sudo
+needs_sudo() {
+    local dir="$1"
+    if [[ ! -w "$dir" ]]; then
+        echo "sudo"
+    fi
+}
+
+# Function to install dependencies
+install_dependencies() {
+    local install_dir="$1"
+
+    echo "Installing dependencies: rclone v1.70.3, restic v0.18.0, resticprofile v0.31.0"
+
+    # Create temporary directory for downloads only if needed
+    local temp_dir=""
+    cleanup_temp() {
+        if [[ -n "$temp_dir" && -d "$temp_dir" ]]; then
+            rm -rf "$temp_dir"
+        fi
+    }
+    trap cleanup_temp EXIT
+
+    local sudo_cmd=$(needs_sudo "$install_dir")
+
+    for dep in "${DEPENDENCIES[@]}"; do
+        IFS=':' read -r binary_name version url <<< "$dep"
+
+        if ! check_binary "$binary_name" "$install_dir"; then
+            echo "Installing $binary_name $version..."
+
+            if [[ -z "$temp_dir" ]]; then
+                temp_dir=$(mktemp -d)
+                cd "$temp_dir"
+            fi
+
+            case "$binary_name" in
+                "rclone")
+                    curl -L "$url" -o rclone.zip
+                    unzip -q rclone.zip
+                    $sudo_cmd cp rclone-*-linux-amd64/rclone "$install_dir/"
+                    $sudo_cmd chmod +x "$install_dir/rclone"
+                    ;;
+                "restic")
+                    curl -L "$url" -o restic.bz2
+                    bunzip2 restic.bz2
+                    $sudo_cmd cp restic "$install_dir/"
+                    $sudo_cmd chmod +x "$install_dir/restic"
+                    ;;
+                "resticprofile")
+                    curl -L "$url" -o resticprofile.tar.gz
+                    tar -xzf resticprofile.tar.gz
+                    $sudo_cmd cp resticprofile "$install_dir/"
+                    $sudo_cmd chmod +x "$install_dir/resticprofile"
+                    ;;
+            esac
+            echo -e "${GREEN}✓ $binary_name installed${NC}"
+        fi
+    done
+
+    # Check if install directory is in PATH
+    if [[ ":$PATH:" != *":$install_dir:"* ]]; then
+        echo -e "${YELLOW}⚠ WARNING: $install_dir is not in your PATH${NC}"
+        echo "Add this line to your ~/.bashrc or ~/.profile:"
+        echo "export PATH=\"$install_dir:\$PATH\""
+    fi
+}
 
 # Check if rv.py exists
 if [ ! -f "$SCRIPT_NAME" ]; then
@@ -19,20 +112,16 @@ if [ ! -f "$SCRIPT_NAME" ]; then
     exit 1
 fi
 
-# Function to try installing to a directory
+# Function to try installing rv to a directory
 try_install() {
     local dir="$1"
     local target="$dir/$TARGET_NAME"
 
-    echo -e "${YELLOW}Trying to install to $dir...${NC}"
-
     if [ ! -d "$dir" ]; then
-        echo -e "${RED}Directory $dir does not exist${NC}"
         return 1
     fi
 
     if [ ! -w "$dir" ]; then
-        echo -e "${RED}No write permission to $dir${NC}"
         return 1
     fi
 
@@ -41,6 +130,10 @@ try_install() {
     chmod +x "$target"
 
     echo -e "${GREEN}✅ Successfully installed $TARGET_NAME to $dir${NC}"
+
+    # Install dependencies to the same directory
+    install_dependencies "$dir"
+
     return 0
 }
 
@@ -54,8 +147,13 @@ PREFERRED_DIRS=(
     "$HOME/bin"
 )
 
+# Check if rv already exists
+if command -v rv >/dev/null 2>&1; then
+    echo -e "${GREEN}✅ rv already installed at: $(which rv)${NC}"
+    exit 0
+fi
+
 echo "Installing rv..."
-echo
 
 # Try preferred directories first
 for dir in "${PREFERRED_DIRS[@]}"; do
@@ -71,7 +169,6 @@ for dir in "${PREFERRED_DIRS[@]}"; do
 done
 
 # If preferred dirs failed, try any writable directory in PATH
-echo -e "${YELLOW}Trying other directories in PATH...${NC}"
 for dir in "${PATH_DIRS[@]}"; do
     # Skip if already tried
     skip=false
@@ -108,5 +205,7 @@ echo "   mkdir -p ~/.local/bin"
 echo "   cp $SCRIPT_NAME ~/.local/bin/$TARGET_NAME"
 echo "   chmod +x ~/.local/bin/$TARGET_NAME"
 echo "   # Add ~/.local/bin to PATH if not already there"
+echo
+echo "4. Then manually install dependencies to the same directory"
 echo
 exit 1
