@@ -21,13 +21,13 @@ check_binary() {
 
     # Check if binary exists in install directory
     if [[ -x "$install_dir/$binary_name" ]]; then
-        echo "$binary_name: already installed in $install_dir"
+        echo "$binary_name: already installed in $install_dir, skipping"
         return 0
     fi
 
     # Check if binary exists in PATH
     if command -v "$binary_name" >/dev/null 2>&1; then
-        echo "$binary_name: found in PATH"
+        echo "$binary_name: found in PATH, skipping"
         return 0
     fi
 
@@ -51,7 +51,7 @@ install_dependencies() {
     # Create temporary directory for downloads only if needed
     local temp_dir=""
     cleanup_temp() {
-        if [[ -n "$temp_dir" && -d "$temp_dir" ]]; then
+        if [[ -n "${temp_dir:-}" && -d "${temp_dir:-}" ]]; then
             rm -rf "$temp_dir"
         fi
     }
@@ -120,14 +120,22 @@ try_install() {
         return 1
     fi
 
-    # Copy and make executable
+    # Install dependencies first
+    install_dependencies "$dir"
+
+    # Start rv installation process
+    echo "rv: installing to writable PATH directory"
+
+    # Check if rv already exists before overriding
+    if command -v rv >/dev/null 2>&1; then
+        echo "rv: found existing installation at $(which rv), overriding"
+    fi
+
+    # Then copy and make executable (override existing)
     cp "$SCRIPT_NAME" "$target"
     chmod +x "$target"
 
     echo "$TARGET_NAME: installed successfully to $dir"
-
-    # Install dependencies to the same directory
-    install_dependencies "$dir"
 
     return 0
 }
@@ -141,14 +149,6 @@ PREFERRED_DIRS=(
     "$HOME/.local/bin"
     "$HOME/bin"
 )
-
-# Check if rv already exists
-if command -v rv >/dev/null 2>&1; then
-    echo "rv: already installed at $(which rv)"
-    exit 0
-fi
-
-echo "rv: installing to writable PATH directory"
 
 # Try preferred directories first
 for dir in "${PREFERRED_DIRS[@]}"; do
