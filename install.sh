@@ -27,7 +27,19 @@ check_binary() {
 
     # Check if binary exists in PATH
     if command -v "$binary_name" >/dev/null 2>&1; then
-        echo "$binary_name: found in PATH, skipping"
+        local current_version=""
+        case "$binary_name" in
+            "rclone")
+                current_version=$(rclone version 2>/dev/null | head -n1 | awk '{print $2}' || echo "unknown")
+                ;;
+            "restic")
+                current_version=$(restic version 2>/dev/null | head -n1 | awk '{print $2}' || echo "unknown")
+                ;;
+            "resticprofile")
+                current_version=$(resticprofile version 2>/dev/null | grep -o 'version [0-9.]*' | head -n1 || echo "unknown")
+                ;;
+        esac
+        echo "$binary_name: found in PATH (version: $current_version), skipping"
         return 0
     fi
 
