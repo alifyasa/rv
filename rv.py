@@ -6,9 +6,9 @@ rv - Versioning using Restic
 import os
 import sys
 import subprocess
-import getpass
 import shutil
 import argparse
+import getpass
 from pathlib import Path
 from typing import Dict, Callable, Optional
 
@@ -27,7 +27,8 @@ version: "1"
 
 default:
   repository: "local:.rv/repo"   # Relative to CWD
-  password-file: "password.txt"  # Relative to config.yaml
+  password-command: |
+    rv get-pass
 
   backup:
     verbose: true
@@ -40,6 +41,10 @@ default:
 
   find:
     human-readable: true
+
+  init:
+    password-command: |
+      rv get-pass --confirm
 """.strip()
 
 # endregion
@@ -101,19 +106,6 @@ def cmd_init(args: list[str]) -> None:
         # Create config.yaml file
         (restic_dir / "config.yaml").write_text(CONFIG_TEMPLATE)
 
-        # Get password
-        while True:
-            password: str = getpass.getpass("Enter password for new repository: ")
-            password2: str = getpass.getpass("Enter password again: ")
-            if password == password2:
-                break
-            print("Error: Passwords don't match")
-
-        # Save password
-        password_file: Path = restic_dir / "password.txt"
-        password_file.write_text(password)
-        password_file.chmod(0o600)
-
         excludes_content: str = f"./{CONFIG_DIR}/repo/\n**/.git/"
 
         excludes_file: Path = restic_dir / ".rvignore"
@@ -125,10 +117,10 @@ def cmd_init(args: list[str]) -> None:
 
         config_path: str = get_config_path(restic_dir)
         cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
-        subprocess.run(cmd, check=False)
+        subprocess.run(cmd, check=True)
 
         print(f"Initialized restic configuration in {CONFIG_DIR}/")
-    except (OSError, IOError, PermissionError, KeyboardInterrupt) as e:
+    except (OSError, subprocess.SubprocessError) as e:
         # Clean up on any error
         if restic_dir.exists():
             shutil.rmtree(restic_dir)
@@ -162,6 +154,21 @@ def cmd_log(args: list[str]) -> None:
     run_resticprofile("snapshots", *args)
 
 
+def cmd_get_pass(args: list[str]) -> None:
+    """Get password using getpass and print it back"""
+    confirm: bool = "--confirm" in args
+
+    password: str = getpass.getpass("Password: ")
+
+    if confirm:
+        confirm_password: str = getpass.getpass("Confirm password: ")
+        if password != confirm_password:
+            print("Error: passwords do not match", file=sys.stderr)
+            sys.exit(1)
+
+    print(password)
+
+
 # endregion
 
 # region Command Dispatch
@@ -171,6 +178,7 @@ COMMANDS: Dict[str, Callable[[list[str]], None]] = {
     "init": cmd_init,
     "status": cmd_status,
     "log": cmd_log,
+    "get-pass": cmd_get_pass,
     # Add more commands here...
 }
 
