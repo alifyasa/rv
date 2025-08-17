@@ -41,7 +41,6 @@ try_install() {
     chmod +x "$target"
 
     echo -e "${GREEN}✅ Successfully installed $TARGET_NAME to $dir${NC}"
-    echo -e "${GREEN}You can now use: $TARGET_NAME init${NC}"
     return 0
 }
 
