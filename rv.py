@@ -26,12 +26,12 @@ CONFIG_TEMPLATE: str = """
 version: "1"
 
 default:
+  verbose: 2
   repository: "{repository}"
   password-command: |
     rv get-pass
 
   backup:
-    verbose: true
     skip-if-unchanged: true
     exclude-file:               # Relative to config.yaml
      - ".rvignore"
@@ -45,6 +45,9 @@ default:
   init:
     password-command: |
       rv get-pass --confirm
+
+  restore:
+    target: .                    # Relative to CWD
 """.strip()
 
 # endregion
@@ -167,7 +170,7 @@ def cmd_init(args: list[str]) -> None:
         sys.exit(1)
 
 
-def cmd_status(args: list[str]) -> None:
+def cmd_log(args: list[str]) -> None:
     """Show recent snapshots (like git status)"""
     restic_dir: Optional[Path] = find_restic_dir()
     if restic_dir is None:
@@ -178,19 +181,6 @@ def cmd_status(args: list[str]) -> None:
         sys.exit(1)
 
     run_resticprofile("snapshots", "--compact", "--latest", "10", *args)
-
-
-def cmd_log(args: list[str]) -> None:
-    """Show all snapshots (like git log)"""
-    restic_dir: Optional[Path] = find_restic_dir()
-    if restic_dir is None:
-        print(
-            f"Error: not in a restic repository (no {CONFIG_DIR} found)",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    run_resticprofile("snapshots", *args)
 
 
 def cmd_get_pass(args: list[str]) -> None:
@@ -215,7 +205,6 @@ def cmd_get_pass(args: list[str]) -> None:
 # Command registry - add new commands here
 COMMANDS: Dict[str, Callable[[list[str]], None]] = {
     "init": cmd_init,
-    "status": cmd_status,
     "log": cmd_log,
     "get-pass": cmd_get_pass,
     # Add more commands here...
