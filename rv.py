@@ -8,17 +8,19 @@ import sys
 import subprocess
 import getpass
 import shutil
+import argparse
 from pathlib import Path
+from typing import Dict, Callable, Optional
 
 # region Configuration
 
-CONFIG_DIR = ".rv"
+CONFIG_DIR: str = ".rv"
 
 # endregion
 
 # region Templates
 
-CONFIG_TEMPLATE = """
+CONFIG_TEMPLATE: str = """
 # yaml-language-server: $schema=https://creativeprojects.github.io/resticprofile/jsonschema/config.json
 
 version: "1"
@@ -45,11 +47,11 @@ default:
 # region Utilities
 
 
-def find_restic_dir() -> Path | None:
+def find_restic_dir() -> Optional[Path]:
     """Find .rv directory by walking up from current directory"""
-    current = Path.cwd()
+    current: Path = Path.cwd()
     for parent in [current, *current.parents]:
-        restic_dir = parent / CONFIG_DIR
+        restic_dir: Path = parent / CONFIG_DIR
         if restic_dir.is_dir():
             return restic_dir
     return None
@@ -57,7 +59,7 @@ def find_restic_dir() -> Path | None:
 
 def get_config_path(restic_dir: Path) -> str:
     """Get the path to the resticprofile config file"""
-    config_file = restic_dir / "config.yaml"
+    config_file: Path = restic_dir / "config.yaml"
     if not config_file.exists():
         print(f"Error: {config_file} not found", file=sys.stderr)
         sys.exit(1)
@@ -66,7 +68,7 @@ def get_config_path(restic_dir: Path) -> str:
 
 def run_resticprofile(*args: str) -> None:
     """Run resticprofile with the given arguments"""
-    restic_dir = find_restic_dir()
+    restic_dir: Optional[Path] = find_restic_dir()
     if restic_dir is None:
         print(
             f"Error: not in a restic repository (no {CONFIG_DIR} found)",
@@ -74,8 +76,8 @@ def run_resticprofile(*args: str) -> None:
         )
         sys.exit(1)
 
-    config_path = get_config_path(restic_dir)
-    cmd = ["resticprofile", "-c", config_path] + list(args)
+    config_path: str = get_config_path(restic_dir)
+    cmd: list[str] = ["resticprofile", "-c", config_path] + list(args)
     os.execvp("resticprofile", cmd)
 
 
@@ -86,7 +88,7 @@ def run_resticprofile(*args: str) -> None:
 
 def cmd_init(args: list[str]) -> None:
     """Initialize a new restic repository configuration"""
-    restic_dir = Path(CONFIG_DIR)
+    restic_dir: Path = Path(CONFIG_DIR)
 
     if restic_dir.exists():
         print(f"Error: {CONFIG_DIR} directory already exists")
@@ -101,28 +103,28 @@ def cmd_init(args: list[str]) -> None:
 
         # Get password
         while True:
-            password = getpass.getpass("Enter password for new repository: ")
-            password2 = getpass.getpass("Enter password again: ")
+            password: str = getpass.getpass("Enter password for new repository: ")
+            password2: str = getpass.getpass("Enter password again: ")
             if password == password2:
                 break
             print("Error: Passwords don't match")
 
         # Save password
-        password_file = restic_dir / "password.txt"
+        password_file: Path = restic_dir / "password.txt"
         password_file.write_text(password)
         password_file.chmod(0o600)
 
-        excludes_content = f"./{CONFIG_DIR}/repo/" "\n" "**/.git/"
+        excludes_content: str = f"./{CONFIG_DIR}/repo/\n**/.git/"
 
-        excludes_file = restic_dir / ".rvignore"
+        excludes_file: Path = restic_dir / ".rvignore"
         excludes_file.write_text(excludes_content)
         excludes_file.chmod(0o644)
 
-        parent_exclude = restic_dir.parent / ".rvignore"
+        parent_exclude: Path = restic_dir.parent / ".rvignore"
         parent_exclude.touch(exist_ok=True)
 
-        config_path = get_config_path(restic_dir)
-        cmd = ["resticprofile", "-c", config_path, "init"] + list(args)
+        config_path: str = get_config_path(restic_dir)
+        cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
         subprocess.run(cmd, check=False)
 
         print(f"Initialized restic configuration in {CONFIG_DIR}/")
@@ -136,7 +138,7 @@ def cmd_init(args: list[str]) -> None:
 
 def cmd_status(args: list[str]) -> None:
     """Show recent snapshots (like git status)"""
-    restic_dir = find_restic_dir()
+    restic_dir: Optional[Path] = find_restic_dir()
     if restic_dir is None:
         print(
             f"Error: not in a restic repository (no {CONFIG_DIR} found)",
@@ -149,7 +151,7 @@ def cmd_status(args: list[str]) -> None:
 
 def cmd_log(args: list[str]) -> None:
     """Show all snapshots (like git log)"""
-    restic_dir = find_restic_dir()
+    restic_dir: Optional[Path] = find_restic_dir()
     if restic_dir is None:
         print(
             f"Error: not in a restic repository (no {CONFIG_DIR} found)",
@@ -165,7 +167,7 @@ def cmd_log(args: list[str]) -> None:
 # region Command Dispatch
 
 # Command registry - add new commands here
-COMMANDS = {
+COMMANDS: Dict[str, Callable[[list[str]], None]] = {
     "init": cmd_init,
     "status": cmd_status,
     "log": cmd_log,
@@ -175,9 +177,25 @@ COMMANDS = {
 
 def main() -> None:
     """Main function with command dispatch"""
-    # Get command (first argument)
-    command = sys.argv[1] if len(sys.argv) > 1 else None
-    args = sys.argv[2:] if len(sys.argv) > 2 else []
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        prog="rv",
+        description="Versioning using Restic",
+        add_help=False,  # We'll handle help manually to pass through to resticprofile
+    )
+
+    # Parse known args to separate command from remaining args
+    parser.add_argument("command", nargs="?", help="Command to execute")
+    parser.add_argument("args", nargs="*", help="Arguments for the command")
+
+    # Parse all arguments, allowing unknown ones to pass through
+    try:
+        parsed_args, unknown_args = parser.parse_known_args()
+        command: Optional[str] = parsed_args.command
+        args: list[str] = parsed_args.args + unknown_args
+    except SystemExit:
+        # If argparse fails (e.g., --help), pass everything to resticprofile
+        run_resticprofile(*sys.argv[1:])
+        return
 
     # Check if it's a custom command
     if command in COMMANDS:
@@ -185,7 +203,10 @@ def main() -> None:
         return
 
     # Default: passthrough to resticprofile
-    run_resticprofile(*sys.argv[1:])
+    if command:
+        run_resticprofile(command, *args)
+    else:
+        run_resticprofile()
 
 
 # endregion

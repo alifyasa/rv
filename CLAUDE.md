@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **CRITICAL**:
 1. This codebase is constrained to use Python 3.9 standard libraries only. Do not suggest or add any external dependencies beyond what's already in pyproject.toml.
 2. One file only (rv.py) - all functionality must remain in the single file. Use VS Code style region markers (`# region` / `# endregion`) to organize code sections.
+3. All code must be fully typed with type hints. Run `make type-check` to verify mypy compliance before any changes.
 
 ## Development Commands
 
