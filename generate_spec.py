@@ -51,7 +51,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='rv-{commit_hash}',
+    name='rv',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
