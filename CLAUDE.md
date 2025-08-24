@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Codebase Constraints
 **CRITICAL**:
 1. This codebase is constrained to use Python 3.9 standard libraries only. Do not suggest or add any external dependencies beyond what's already in pyproject.toml.
-2. One file only (rv.py) - all functionality must remain in the single file. Use VS Code style region markers (`# region` / `# endregion`) to organize code sections.
-3. All code must be fully typed with type hints. Run `make type-check` to verify mypy compliance before any changes.
+2. All code must be fully typed with type hints. Run `make type-check` to verify mypy compliance before any changes.
+3. Use global imports (not relative imports) to ensure PyInstaller compatibility.
 
 ## Development Commands
 
@@ -20,7 +20,7 @@ make install      # Install base dependencies only
 ```bash
 make lint         # Run ruff linting
 make format       # Auto-format code with ruff
-make type-check   # Run mypy type checking on rv.py
+make type-check   # Run mypy type checking on rv/ package
 make check        # Run both lint and type-check
 make fix          # Auto-fix linting issues and format code
 make ci           # Full CI pipeline (install + check)
@@ -45,32 +45,53 @@ rv is a Git-like wrapper around Restic backup tool that provides familiar versio
 
 ### Core Components
 
-1. **Configuration Management** (`rv.py:29-48`): Loads environment variables from `.rv/config` file to configure Restic repository settings.
+1. **Configuration Management** (`rv/config.py`): Constants and templates for Restic repository configuration, including CONFIG_DIR and CONFIG_TEMPLATE.
 
-2. **Repository Discovery** (`rv.py:19-26`): Walks up directory tree to find `.rv` directory, similar to Git's `.git` discovery.
+2. **Repository Discovery** (`rv/utils.py`): Utility functions including `find_restic_dir()` which walks up directory tree to find `.rv` directory, and `run_resticprofile()` for executing resticprofile commands.
 
-3. **Command System** (`rv.py:138-144`): Registry-based command dispatch that maps custom commands to handler functions, with fallback passthrough to native Restic commands.
+3. **Command System** (`rv/commands/__init__.py`): Registry-based command dispatch with COMMANDS dictionary that maps custom commands to handler functions, with fallback passthrough to native Restic commands.
 
 4. **Custom Commands**:
-   - `init`: Creates `.rv/` directory structure, prompts for password, initializes Restic repository
-   - `status`: Shows recent 5 snapshots (Git status equivalent)
-   - `log`: Shows all snapshots (Git log equivalent)
+   - `init` (`rv/commands/init.py`): Creates `.rv/` directory structure, prompts for password, initializes Restic repository
+   - `log` (`rv/commands/log.py`): Shows recent snapshots (Git log equivalent)
+   - `get-pass` (`rv/commands/get_pass.py`): Password handling utility
+
+5. **CLI Entry Point** (`rv/main.py`): Main function with argument parsing and command dispatch logic.
 
 ### File Structure
-- `rv.py`: Single-file application containing all functionality
-- `rv.spec`: PyInstaller specification for building standalone executable
-- `.rv/config`: Environment variables for Restic configuration
-- `.rv/password`: Repository password file (created during init)
-- `.rv/repo/`: Actual Restic repository data
-- `dist/rv`: Standalone executable (platform-specific, created by `make build-exe`)
+```
+rv/                          # Main package directory
+├── __init__.py              # Package marker with version info
+├── __main__.py              # Entry point for 'python -m rv'
+├── main.py                  # CLI argument parsing and command dispatch
+├── config.py                # Configuration constants and templates
+├── utils.py                 # Repository discovery and resticprofile utilities
+└── commands/                # Command implementations
+    ├── __init__.py          # Command registry (COMMANDS dictionary)
+    ├── base.py              # Command type definitions
+    ├── init.py              # 'rv init' command implementation
+    ├── log.py               # 'rv log' command implementation
+    └── get_pass.py          # 'rv get-pass' command implementation
+
+generate_spec.py             # Generates PyInstaller spec with git commit hash
+rv.spec                      # PyInstaller specification (auto-generated)
+dist/rv                      # Standalone executable (platform-specific)
+
+.rv/                         # Created by 'rv init' in project directories
+├── config.yaml              # Resticprofile configuration
+├── .rvignore                # Exclude patterns
+└── repo/                    # Actual Restic repository data
+```
 
 ### Extension Pattern
 New commands are added by:
-1. Creating a `cmd_<name>()` function that takes `args: list[str]`
-2. Adding entry to `COMMANDS` dictionary (`rv.py:139-144`)
-3. Commands should call `find_restic_dir()` and `load_config()` before using Restic
+1. Create a new file `rv/commands/new_command.py` with a `cmd_new_command()` function that takes `args: list[str]`
+2. Import the function in `rv/commands/__init__.py`
+3. Add entry to `COMMANDS` dictionary in `rv/commands/__init__.py`
+4. Commands should use `find_restic_dir()` and `run_resticprofile()` from `rv.utils` for consistency
+5. Use global imports: `from rv.utils import find_restic_dir` (not relative imports)
 
-All unrecognized commands are passed through directly to the underlying Restic binary after loading configuration.
+All unrecognized commands are passed through directly to the underlying resticprofile binary after loading configuration.
 
 ## CI/CD
 
