@@ -29,6 +29,7 @@ make ci           # Full CI pipeline (install + check)
 ### Build and Publishing
 ```bash
 make build        # Build package with poetry
+make build-exe    # Build standalone executable with PyInstaller (platform-specific)
 make publish      # Publish to PyPI
 make clean        # Remove build artifacts and caches
 ```
@@ -57,9 +58,11 @@ rv is a Git-like wrapper around Restic backup tool that provides familiar versio
 
 ### File Structure
 - `rv.py`: Single-file application containing all functionality
+- `rv.spec`: PyInstaller specification for building standalone executable
 - `.rv/config`: Environment variables for Restic configuration
 - `.rv/password`: Repository password file (created during init)
 - `.rv/repo/`: Actual Restic repository data
+- `dist/rv`: Standalone executable (platform-specific, created by `make build-exe`)
 
 ### Extension Pattern
 New commands are added by:

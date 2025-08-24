@@ -1,5 +1,5 @@
 # Makefile - uv-based development commands
-.PHONY: install dev lint format type-check clean
+.PHONY: install dev lint format type-check clean build-exe
 
 install:
 	uv sync
@@ -24,6 +24,10 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	uv env remove --all
+
+build-exe:
+	uv run pyinstaller rv.spec
+	@echo "✅ Executable built at dist/rv"
 
 # Development workflow shortcuts
 fix:
