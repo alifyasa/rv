@@ -26,8 +26,9 @@ clean:
 	uv env remove --all
 
 build-exe:
+	python3 generate_spec.py
 	uv run pyinstaller rv.spec
-	@echo "✅ Executable built at dist/rv"
+	@echo "✅ Executable built at dist/rv-*"
 
 # Development workflow shortcuts
 fix:
