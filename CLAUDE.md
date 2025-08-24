@@ -71,3 +71,25 @@ New commands are added by:
 3. Commands should call `find_restic_dir()` and `load_config()` before using Restic
 
 All unrecognized commands are passed through directly to the underlying Restic binary after loading configuration.
+
+## CI/CD
+
+The project includes GitHub Actions workflows:
+
+### Continuous Integration (`.github/workflows/ci.yml`)
+- Runs on every push/PR to main branch
+- Validates code with mypy type checking and ruff linting
+- Tests executable build process
+- Runs on Ubuntu latest with Python 3.9
+
+### Build and Release (`.github/workflows/build-release.yml`)
+- Triggers on git tags (v*) or manual workflow dispatch
+- Builds executables for both Linux amd64 and Windows amd64
+- Runs full CI pipeline (type check, lint) before building
+- Creates GitHub releases with platform-specific executables attached
+- Artifacts: `rv-linux-amd64` and `rv-windows-amd64.exe`
+
+### Creating a Release
+1. Tag your commit: `git tag v1.0.0 && git push origin v1.0.0`
+2. GitHub Actions will automatically build and create a release
+3. Executables will be attached to the release for download
