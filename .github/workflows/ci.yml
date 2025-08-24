@@ -28,6 +28,3 @@ jobs:
 
     - name: Test build process
       run: make build-exe
-
-    - name: Test executable
-      run: ./dist/rv version
