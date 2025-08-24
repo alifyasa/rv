@@ -3,7 +3,6 @@
 rv - Versioning using Restic
 """
 
-import os
 import sys
 import subprocess
 import shutil
@@ -28,7 +27,7 @@ version: "1"
 
 default:
   repository: "{repository}"
-  password-command: |
+  password-command: |-
     rv get-pass
 
   backup:
@@ -44,7 +43,7 @@ default:
     human-readable: true
 
   init:
-    password-command: |
+    password-command: |-
       rv get-pass --confirm
 
   restore:
@@ -89,7 +88,8 @@ def run_resticprofile(*args: str) -> None:
 
     config_path: str = get_config_path(restic_dir)
     cmd: list[str] = ["resticprofile", "-c", config_path] + list(args)
-    os.execvp("resticprofile", cmd)
+    result = subprocess.run(cmd)
+    sys.exit(result.returncode)
 
 
 # endregion
