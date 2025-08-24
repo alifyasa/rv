@@ -5,7 +5,7 @@ install:
 	uv sync
 
 dev:
-	uv sync --with dev
+	uv sync --dev
 	uv run pre-commit install
 
 lint:
