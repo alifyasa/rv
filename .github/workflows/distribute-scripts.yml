@@ -1,0 +1,124 @@
+name: Distribute Install Scripts
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  distribute-scripts:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout rv repository
+      uses: actions/checkout@v4
+      with:
+        path: rv-repo
+
+    - name: Checkout GitHub Pages repository
+      uses: actions/checkout@v4
+      with:
+        repository: alifyasa/rv.alifyasa.github.io
+        token: ${{ secrets.PAGES_TOKEN }}
+        path: pages-repo
+
+    - name: Create scripts directory in pages repo
+      run: |
+        mkdir -p pages-repo/scripts
+
+    - name: Copy install scripts to pages repo
+      run: |
+        # Copy Linux install script
+        cp rv-repo/scripts/install-linux-amd64 pages-repo/scripts/
+
+        # Copy Windows install scripts
+        cp rv-repo/scripts/install-windows-amd64.ps1 pages-repo/scripts/
+        cp rv-repo/scripts/install-windows-amd64.bat pages-repo/scripts/
+
+        # Make Linux script executable
+        chmod +x pages-repo/scripts/install-linux-amd64
+
+    - name: Create install script index
+      run: |
+        cat > pages-repo/scripts/README.md << 'EOF'
+        # rv Install Scripts
+
+        Install scripts for rv backup tool.
+
+        ## Quick Install
+
+        ### Linux/macOS
+        ```bash
+        curl -fsSL https://rv.alifyasa.github.io/scripts/install-linux-amd64 | bash
+        ```
+
+        ### Windows (PowerShell)
+        ```powershell
+        Invoke-WebRequest -Uri https://rv.alifyasa.github.io/scripts/install-windows-amd64.ps1 -OutFile install-rv.ps1; .\install-rv.ps1; Remove-Item install-rv.ps1
+        ```
+
+        ### Windows (Command Prompt)
+        ```cmd
+        curl -L https://rv.alifyasa.github.io/scripts/install-windows-amd64.bat -o install-rv.bat && install-rv.bat && del install-rv.bat
+        ```
+
+        ## Manual Download
+
+        - [Linux/macOS Install Script](./install-linux-amd64)
+        - [Windows PowerShell Script](./install-windows-amd64.ps1)
+        - [Windows Batch Script](./install-windows-amd64.bat)
+
+        ## What These Scripts Do
+
+        1. Download the latest rv binary from [GitHub releases](https://github.com/alifyasa/rv/releases/latest)
+        2. Install to an appropriate directory in your PATH
+        3. Make the binary executable
+        4. Add to PATH if necessary (Windows only)
+
+        The scripts will try these installation paths in order:
+
+        **Linux/macOS:**
+        - `~/.local/bin` (preferred)
+        - `~/bin`
+        - `/usr/local/bin`
+
+        **Windows:**
+        - `%LOCALAPPDATA%\Programs\rv` (preferred)
+        - `%USERPROFILE%\bin`
+        - `C:\Program Files\rv`
+        EOF
+
+    - name: Check for changes
+      id: changes
+      run: |
+        cd pages-repo
+        git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
+
+    - name: Commit and push changes
+      if: steps.changes.outputs.changed == 'true'
+      run: |
+        cd pages-repo
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git add scripts/
+        git commit -m "Update rv install scripts
+
+        🤖 Generated with GitHub Actions from rv repository
+
+        Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+        git push
+
+    - name: Summary
+      run: |
+        if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
+          echo "✅ Install scripts have been updated and distributed to GitHub Pages"
+          echo "📍 Available at: https://rv.alifyasa.github.io/scripts/"
+        else
+          echo "ℹ️ No changes detected in install scripts"
+        fi

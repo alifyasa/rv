@@ -1,0 +1,132 @@
+#!/bin/bash
+# install-linux-amd64 - Install rv for Linux AMD64 from GitHub releases
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Binary info
+BINARY_NAME="rv-linux-amd64"
+TARGET_NAME="rv"
+REPO="alifyasa/rv"
+
+echo "Installing rv for Linux AMD64..."
+
+# Function to get latest release download URL
+get_latest_release_url() {
+    curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep "browser_download_url.*$BINARY_NAME" | cut -d '"' -f 4
+}
+
+# Function to try installing to a directory
+try_install() {
+    local dir="$1"
+    local target="$dir/$TARGET_NAME"
+
+    echo -e "${YELLOW}Trying to install to $dir...${NC}"
+
+    if [ ! -d "$dir" ]; then
+        echo -e "${RED}Directory $dir does not exist${NC}"
+        return 1
+    fi
+
+    if [ ! -w "$dir" ]; then
+        echo -e "${RED}No write permission to $dir${NC}"
+        return 1
+    fi
+
+    # Download and install
+    echo "Downloading $BINARY_NAME from GitHub releases..."
+    local download_url
+    download_url=$(get_latest_release_url)
+
+    if [ -z "$download_url" ]; then
+        echo -e "${RED}Error: Could not find download URL for $BINARY_NAME${NC}"
+        return 1
+    fi
+
+    # Create temporary file
+    local temp_file
+    temp_file=$(mktemp)
+    trap 'rm -f "$temp_file"' EXIT
+
+    # Download binary
+    if ! curl -L "$download_url" -o "$temp_file"; then
+        echo -e "${RED}Error: Failed to download $BINARY_NAME${NC}"
+        return 1
+    fi
+
+    # Install and make executable
+    cp "$temp_file" "$target"
+    chmod +x "$target"
+
+    echo -e "${GREEN}✅ Successfully installed $TARGET_NAME to $dir${NC}"
+    return 0
+}
+
+# Get PATH directories
+IFS=':' read -ra PATH_DIRS <<< "$PATH"
+
+# Preferred installation directories (in order of preference)
+PREFERRED_DIRS=(
+    "$HOME/.local/bin"
+    "$HOME/bin"
+    "/usr/local/bin"
+)
+
+# Try preferred directories first
+for dir in "${PREFERRED_DIRS[@]}"; do
+    # Check if directory is in PATH
+    for path_dir in "${PATH_DIRS[@]}"; do
+        if [ "$dir" = "$path_dir" ]; then
+            if try_install "$dir"; then
+                echo -e "${GREEN}Installation complete! You can now run: rv${NC}"
+                exit 0
+            fi
+            break
+        fi
+    done
+done
+
+# If preferred dirs failed, try creating ~/.local/bin
+if [ ! -d "$HOME/.local/bin" ]; then
+    echo -e "${YELLOW}Creating $HOME/.local/bin directory...${NC}"
+    mkdir -p "$HOME/.local/bin"
+    if try_install "$HOME/.local/bin"; then
+        echo -e "${YELLOW}Note: Add $HOME/.local/bin to your PATH if not already present:${NC}"
+        echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo -e "${GREEN}Installation complete! You can now run: rv${NC}"
+        exit 0
+    fi
+fi
+
+# If all failed, show manual instructions
+echo
+echo -e "${RED}❌ Automatic installation failed${NC}"
+echo
+echo -e "${YELLOW}Manual installation:${NC}"
+echo "1. Download the binary manually:"
+download_url=$(get_latest_release_url)
+if [ -n "$download_url" ]; then
+    echo "   curl -L \"$download_url\" -o rv"
+fi
+echo
+echo "2. Choose a directory in your PATH and install:"
+for dir in "${PATH_DIRS[@]}"; do
+    echo "   - $dir"
+done
+echo
+echo "3. Install (example with /usr/local/bin):"
+echo "   sudo cp rv /usr/local/bin/"
+echo "   sudo chmod +x /usr/local/bin/rv"
+echo
+echo "4. Or install to user directory:"
+echo "   mkdir -p ~/.local/bin"
+echo "   cp rv ~/.local/bin/"
+echo "   chmod +x ~/.local/bin/rv"
+echo "   # Add ~/.local/bin to PATH if not already there"
+echo
+exit 1
