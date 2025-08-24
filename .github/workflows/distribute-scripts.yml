@@ -1,124 +1,161 @@
-name: Distribute Install Scripts
+# Deploy install scripts to GitHub Pages
+name: Deploy Install Scripts to Pages
 
 on:
+  # Runs on pushes to main when scripts change
   push:
-    branches: [ main ]
+    branches: ["main"]
     paths:
       - 'scripts/**'
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  distribute-scripts:
+  # Single deploy job since we're just deploying
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout rv repository
-      uses: actions/checkout@v4
-      with:
-        path: rv-repo
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Checkout GitHub Pages repository
-      uses: actions/checkout@v4
-      with:
-        repository: alifyasa/rv.alifyasa.github.io
-        token: ${{ secrets.PAGES_TOKEN }}
-        path: pages-repo
+      - name: Create GitHub Pages structure
+        run: |
+          mkdir -p _site/scripts
 
-    - name: Create scripts directory in pages repo
-      run: |
-        mkdir -p pages-repo/scripts
+          # Copy install scripts
+          cp scripts/install-linux-amd64 _site/scripts/
+          cp scripts/install-windows-amd64.ps1 _site/scripts/
+          cp scripts/install-windows-amd64.bat _site/scripts/
 
-    - name: Copy install scripts to pages repo
-      run: |
-        # Copy Linux install script
-        cp rv-repo/scripts/install-linux-amd64 pages-repo/scripts/
+          # Create install script index page
+          cat > _site/scripts/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>rv Install Scripts</title>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; background: #fafafa; }
+                  .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                  code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-family: "Monaco", "Menlo", monospace; font-size: 14px; }
+                  pre { background: #f8f8f8; padding: 20px; border-radius: 6px; overflow-x: auto; border: 1px solid #e1e1e1; }
+                  pre code { background: none; padding: 0; }
+                  .install-section { margin: 30px 0; padding: 25px; border: 2px solid #e1e1e1; border-radius: 8px; background: #fdfdfd; }
+                  .platform { color: #0066cc; font-weight: 600; margin-bottom: 15px; font-size: 18px; }
+                  ul, ol { padding-left: 20px; }
+                  li { margin: 8px 0; }
+                  a { color: #0066cc; text-decoration: none; }
+                  a:hover { text-decoration: underline; }
+                  hr { border: none; border-top: 1px solid #e1e1e1; margin: 40px 0; }
+                  .footer { text-align: center; color: #666; font-size: 14px; }
+                  h1 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+                  h2 { color: #444; margin-top: 30px; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🚀 rv Install Scripts</h1>
+                  <p>One-command installers for the <strong>rv</strong> backup tool - a Git-like interface for Restic.</p>
 
-        # Copy Windows install scripts
-        cp rv-repo/scripts/install-windows-amd64.ps1 pages-repo/scripts/
-        cp rv-repo/scripts/install-windows-amd64.bat pages-repo/scripts/
+                  <div class="install-section">
+                      <div class="platform">🐧 Linux / 🍎 macOS</div>
+                      <pre><code>curl -fsSL https://alifyasa.github.io/rv/scripts/install-linux-amd64 | bash</code></pre>
+                  </div>
 
-        # Make Linux script executable
-        chmod +x pages-repo/scripts/install-linux-amd64
+                  <div class="install-section">
+                      <div class="platform">🪟 Windows (PowerShell)</div>
+                      <pre><code>iwr https://alifyasa.github.io/rv/scripts/install-windows-amd64.ps1 -UseBasicParsing | iex</code></pre>
+                  </div>
 
-    - name: Create install script index
-      run: |
-        cat > pages-repo/scripts/README.md << 'EOF'
-        # rv Install Scripts
+                  <div class="install-section">
+                      <div class="platform">🪟 Windows (Command Prompt)</div>
+                      <pre><code>curl -fsSL https://alifyasa.github.io/rv/scripts/install-windows-amd64.bat | cmd</code></pre>
+                  </div>
 
-        Install scripts for rv backup tool.
+                  <h2>📁 Manual Download</h2>
+                  <ul>
+                      <li><a href="./install-linux-amd64">Linux/macOS Install Script</a></li>
+                      <li><a href="./install-windows-amd64.ps1">Windows PowerShell Script</a></li>
+                      <li><a href="./install-windows-amd64.bat">Windows Batch Script</a></li>
+                  </ul>
 
-        ## Quick Install
+                  <h2>🔧 What These Scripts Do</h2>
+                  <ol>
+                      <li>Download the latest rv binary from <a href="https://github.com/alifyasa/rv/releases/latest">GitHub releases</a></li>
+                      <li>Install to an appropriate directory in your PATH</li>
+                      <li>Make the binary executable</li>
+                      <li>Add to PATH if necessary</li>
+                  </ol>
 
-        ### Linux/macOS
-        ```bash
-        curl -fsSL https://rv.alifyasa.github.io/scripts/install-linux-amd64 | bash
-        ```
+                  <h2>📂 Installation Paths</h2>
+                  <p><strong>Linux/macOS (in order of preference):</strong></p>
+                  <ul>
+                      <li><code>~/.local/bin</code> (preferred)</li>
+                      <li><code>~/bin</code></li>
+                      <li><code>/usr/local/bin</code></li>
+                  </ul>
 
-        ### Windows (PowerShell)
-        ```powershell
-        Invoke-WebRequest -Uri https://rv.alifyasa.github.io/scripts/install-windows-amd64.ps1 -OutFile install-rv.ps1; .\install-rv.ps1; Remove-Item install-rv.ps1
-        ```
+                  <p><strong>Windows (in order of preference):</strong></p>
+                  <ul>
+                      <li><code>%LOCALAPPDATA%\Programs\rv</code> (preferred)</li>
+                      <li><code>%USERPROFILE%\bin</code></li>
+                      <li><code>C:\Program Files\rv</code></li>
+                  </ul>
 
-        ### Windows (Command Prompt)
-        ```cmd
-        curl -L https://rv.alifyasa.github.io/scripts/install-windows-amd64.bat -o install-rv.bat && install-rv.bat && del install-rv.bat
-        ```
+                  <hr>
+                  <div class="footer">
+                      <p>📦 <a href="https://github.com/alifyasa/rv">rv on GitHub</a> | 🚀 Auto-generated from scripts</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
 
-        ## Manual Download
+          # Create root redirect
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>rv - Git-like Backup Tool</title>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <meta http-equiv="refresh" content="0; url=./scripts/">
+              <style>
+                  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 50px; }
+              </style>
+          </head>
+          <body>
+              <h1>rv - Git-like Backup Tool</h1>
+              <p>Redirecting to <a href="./scripts/">install scripts</a>...</p>
+          </body>
+          </html>
+          EOF
 
-        - [Linux/macOS Install Script](./install-linux-amd64)
-        - [Windows PowerShell Script](./install-windows-amd64.ps1)
-        - [Windows Batch Script](./install-windows-amd64.bat)
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
-        ## What These Scripts Do
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
 
-        1. Download the latest rv binary from [GitHub releases](https://github.com/alifyasa/rv/releases/latest)
-        2. Install to an appropriate directory in your PATH
-        3. Make the binary executable
-        4. Add to PATH if necessary (Windows only)
-
-        The scripts will try these installation paths in order:
-
-        **Linux/macOS:**
-        - `~/.local/bin` (preferred)
-        - `~/bin`
-        - `/usr/local/bin`
-
-        **Windows:**
-        - `%LOCALAPPDATA%\Programs\rv` (preferred)
-        - `%USERPROFILE%\bin`
-        - `C:\Program Files\rv`
-        EOF
-
-    - name: Check for changes
-      id: changes
-      run: |
-        cd pages-repo
-        git diff --quiet && echo "changed=false" >> $GITHUB_OUTPUT || echo "changed=true" >> $GITHUB_OUTPUT
-
-    - name: Commit and push changes
-      if: steps.changes.outputs.changed == 'true'
-      run: |
-        cd pages-repo
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        git add scripts/
-        git commit -m "Update rv install scripts
-
-        🤖 Generated with GitHub Actions from rv repository
-
-        Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-
-        git push
-
-    - name: Summary
-      run: |
-        if [ "${{ steps.changes.outputs.changed }}" == "true" ]; then
-          echo "✅ Install scripts have been updated and distributed to GitHub Pages"
-          echo "📍 Available at: https://rv.alifyasa.github.io/scripts/"
-        else
-          echo "ℹ️ No changes detected in install scripts"
-        fi
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
