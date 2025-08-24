@@ -21,16 +21,13 @@ jobs:
       run: uv python install 3.9
 
     - name: Install dependencies
-      run: uv sync --dev
+      run: make dev
 
-    - name: Run type check
-      run: uv run mypy rv.py
-
-    - name: Run linting
-      run: uv run ruff check .
+    - name: Run CI checks
+      run: make ci
 
     - name: Test build process
-      run: uv run pyinstaller rv.spec
+      run: make build-exe
 
     - name: Test executable
       run: ./dist/rv version
