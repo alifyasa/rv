@@ -27,7 +27,7 @@ def generate_spec_content(commit_hash: str) -> str:
 block_cipher = None
 
 a = Analysis(
-    ['rv.py'],
+    ['rv/__main__.py'],
     pathex=[],
     binaries=[],
     datas=[],

@@ -15,7 +15,7 @@ format:
 	uv run ruff format .
 
 type-check:
-	uv run mypy rv.py
+	uv run mypy rv/
 
 check: lint type-check
 
