@@ -5,7 +5,7 @@ import argparse
 from typing import Optional
 
 from rv.commands import COMMANDS
-from rv.utils import run_resticprofile
+from rv.utils import run_resticprofile, with_password
 
 
 def main() -> None:
@@ -27,7 +27,7 @@ def main() -> None:
         args: list[str] = parsed_args.args + unknown_args
     except SystemExit:
         # If argparse fails (e.g., --help), pass everything to resticprofile
-        run_resticprofile(*sys.argv[1:])
+        with_password(run_resticprofile)(*sys.argv[1:])
         return
 
     # Check if it's a custom command
