@@ -23,10 +23,6 @@ default:
   find:
     human-readable: true
 
-  init:
-    password-command: |-
-      rv get-pass --confirm
-
   restore:
     target: .                # Relative to CWD
 """.strip()
