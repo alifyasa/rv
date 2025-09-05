@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Optional
 
 from rv.config import CONFIG_DIR
-from rv.utils import find_restic_dir, get_config_path, with_password
+from rv.utils import (
+    run_resticprofile_with_config,
+    find_restic_dir,
+    get_config_path,
+    with_password,
+)
 
 
 @with_password
@@ -60,11 +65,10 @@ def cmd_commit(args: list[str]) -> None:
 
     # Run restic backup without the message flag
     config_path: str = get_config_path(restic_dir)
-    cmd: list[str] = ["resticprofile", "-c", config_path, "backup"] + remaining_args
-    result = subprocess.run(cmd, env=os.environ)
 
-    # Delete COMMIT_MESSAGE after backup
-    if commit_message_file.exists():
-        commit_message_file.unlink()
-
-    sys.exit(result.returncode)
+    try:
+        run_resticprofile_with_config(config_path, "backup", *remaining_args)
+    finally:
+        # Delete COMMIT_MESSAGE after backup
+        if commit_message_file.exists():
+            commit_message_file.unlink()

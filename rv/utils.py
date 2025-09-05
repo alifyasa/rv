@@ -28,6 +28,16 @@ def get_config_path(restic_dir: Path) -> str:
     return str(config_file)
 
 
+def run_resticprofile_with_config(
+    config_path: str, *args: str, check: bool = False
+) -> None:
+    """Run resticprofile with a specific config path"""
+    cmd: list[str] = ["resticprofile", "-c", config_path] + list(args)
+    result = subprocess.run(cmd, env=os.environ, check=check)
+    if not check:
+        sys.exit(result.returncode)
+
+
 def run_resticprofile(*args: str) -> None:
     """Run resticprofile with the given arguments"""
     restic_dir: Optional[Path] = find_restic_dir()
@@ -39,9 +49,7 @@ def run_resticprofile(*args: str) -> None:
         sys.exit(1)
 
     config_path: str = get_config_path(restic_dir)
-    cmd: list[str] = ["resticprofile", "-c", config_path] + list(args)
-    result = subprocess.run(cmd, env=os.environ)
-    sys.exit(result.returncode)
+    run_resticprofile_with_config(config_path, *args)
 
 
 def with_password_confirmation(func: Callable[..., Any]) -> Callable[..., Any]:
