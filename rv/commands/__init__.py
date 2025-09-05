@@ -4,11 +4,11 @@ from typing import Dict, Callable
 
 from rv.commands.init import cmd_init
 from rv.commands.log import cmd_log
-from rv.commands.get_pass import cmd_get_pass
+from rv.commands.commit import cmd_commit
 
 # Command registry - add new commands here
 COMMANDS: Dict[str, Callable[[list[str]], None]] = {
     "init": cmd_init,
     "log": cmd_log,
-    "get-pass": cmd_get_pass,
+    "commit": cmd_commit,
 }

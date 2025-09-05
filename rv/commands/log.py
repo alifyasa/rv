@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import Optional
 
 from rv.config import CONFIG_DIR
-from rv.utils import find_restic_dir, run_resticprofile
+from rv.utils import find_restic_dir, run_resticprofile, with_password
 
 
+@with_password
 def cmd_log(args: list[str]) -> None:
     """Show recent snapshots (like git status)"""
     restic_dir: Optional[Path] = find_restic_dir()

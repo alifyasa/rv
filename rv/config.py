@@ -10,8 +10,6 @@ version: "1"
 
 default:
   repository: "{repository}"
-  password-command: |-
-    rv get-pass
 
   backup:
     verbose: 1

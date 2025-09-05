@@ -9,9 +9,10 @@ from pathlib import Path
 from typing import Optional
 
 from rv.config import CONFIG_DIR, CONFIG_TEMPLATE
-from rv.utils import get_config_path
+from rv.utils import get_config_path, with_password_confirmation
 
 
+@with_password_confirmation
 def cmd_init(args: list[str]) -> None:
     """Initialize a new restic repository configuration"""
     # Parse arguments for repository option
