@@ -37,6 +37,6 @@ def main() -> None:
 
     # Default: passthrough to resticprofile
     if command:
-        run_resticprofile(command, *args)
+        with_password(run_resticprofile)(command, *args)
     else:
-        run_resticprofile()
+        with_password(run_resticprofile)()
