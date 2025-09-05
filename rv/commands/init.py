@@ -1,5 +1,6 @@
 """Initialize a new restic repository configuration."""
 
+import os
 import sys
 import subprocess
 import shutil
@@ -90,7 +91,7 @@ def cmd_init(args: list[str]) -> None:
         if not setup_only:
             config_path: str = get_config_path(restic_dir)
             cmd: list[str] = ["resticprofile", "-c", config_path, "init"] + list(args)
-            subprocess.run(cmd, check=True)
+            subprocess.run(cmd, check=True, env=os.environ)
 
         # Perform atomic swap if using override
         if override and temp_dir is not None:

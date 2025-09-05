@@ -1,5 +1,6 @@
 """Utility functions for repository discovery and resticprofile execution."""
 
+import os
 import sys
 import subprocess
 from pathlib import Path
@@ -39,5 +40,5 @@ def run_resticprofile(*args: str) -> None:
 
     config_path: str = get_config_path(restic_dir)
     cmd: list[str] = ["resticprofile", "-c", config_path] + list(args)
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, env=os.environ)
     sys.exit(result.returncode)
